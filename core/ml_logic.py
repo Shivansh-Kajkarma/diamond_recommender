@@ -79,8 +79,8 @@ class DiamondRecommender:
         X = df_processed[self.feature_columns].fillna(0).values
 
         # 3. Apply WEIGHTS (The "Business Logic")
-        # We manipulate the raw values BEFORE scaling/fitting to make them more "important"
-        # Since we use StandardScaler, multiplying the input column increases its variance,
+        # manipulate the raw values BEFORE scaling/fitting to make them more "important"
+        # Since i use StandardScaler, multiplying the input column increases its variance,
         # which effectively increases its weight in the distance calculation.
 
         # Get column indices
@@ -103,7 +103,7 @@ class DiamondRecommender:
         Trains the KNN model in memory.
         """
         if df.empty:
-            print("⚠️ Warning: DataFrame is empty. Cannot fit model.")
+            print("Warning: DataFrame is empty. Cannot fit model.")
             return None, []
 
         X_scaled, ids = self.preprocess(df)
