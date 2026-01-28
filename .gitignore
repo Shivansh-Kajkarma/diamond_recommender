@@ -208,3 +208,10 @@ __marimo__/
 diamonds*.csv
 download.py
 evaluate.py
+
+diamonds*.json
+index*.js
+package*.json
+scrapper.py
+uniglow-diamonds.csv
+node_modules/
