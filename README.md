@@ -20,7 +20,7 @@ diamond_recommendar/
 ├── scripts/
 │   ├── __init__.py
 │   ├── batch_updater.py     # Main batch processing file
-│   └── seed_db.py
+│   └── seed_db.py           # Useless
 ├── requirements.txt
 └── README.md
 ```
@@ -41,14 +41,12 @@ diamond_recommendar/
    pip install -r requirements.txt
    ```
 
-2. Configure settings in `core/config.py`
-
-3. Run the batch updater:
-   ```bash
-   python scripts/batch_updater.py
-   ```
-
-4. After database updates, trigger the API:
+2. Else this is the main file which hits After database updates, trigger the API:
    ```bash
    python app/main.py
    ``` 
+
+3. And if you want to run this script on standalone dataset to get recommendations then Run the batch updater only:
+   ```bash
+   python scripts/batch_updater.py
+   ```
