@@ -9,7 +9,7 @@ from core.config import settings
 from core.ml_logic import DiamondRecommender
 
 def run_batch_update():
-    print("⏳ Starting Batch Update Process...")
+    print("Starting Batch Update Process...")
     
     # 2. Connect to DB
     try:
@@ -18,10 +18,8 @@ def run_batch_update():
         collection = db[settings.COLLECTION_NAME]
         
         # 3. Fetch Data (Only fields needed for ML + ID)
-        print("📥 Fetching inventory from MongoDB...")
+        print("Fetching inventory from MongoDB...")
         
-        # We need to map your config weights to the keys present in DB
-        # Assuming DB keys are: priceListUSD, weight, depthPerc, tablePerc, etc.
         projection = {
             "_id": 1,
             "priceListUSD": 1, 
@@ -39,10 +37,10 @@ def run_batch_update():
         df = pd.DataFrame(list(cursor))
         
         if df.empty:
-            print("⚠️ Database is empty. Nothing to do.")
+            print("Database is empty. Nothing to do.")
             return
 
-        print(f"🧠 Training model on {len(df)} diamonds...")
+        print(f"Training model on {len(df)} diamonds...")
 
         # 4. Initialize & Fit ML Model
         recommender = DiamondRecommender()
@@ -51,7 +49,7 @@ def run_batch_update():
         # We access the internal logic manually for efficiency
         ids, indices = recommender.find_similar(df)
 
-        print("⚡ Preparing Bulk Update Operations...")
+        print("Preparing Bulk Update Operations...")
 
         # 5. Prepare Bulk Writes
         operations = []
