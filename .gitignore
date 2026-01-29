@@ -215,3 +215,5 @@ package*.json
 scrapper.py
 uniglow-diamonds.csv
 node_modules/
+backup_generator.py
+uniglow*.*

@@ -17,6 +17,8 @@ def run_batch_update():
         client = MongoClient(settings.MONGO_URI)
         db = client[settings.DB_NAME]
         collection = db[settings.COLLECTION_NAME]
+        # source_collection = db[settings.COLLECTION_NAME]  # where data is fetched from
+        # target_collection = db["diamonds"]  # where results go
 
         # 3. Fetch Data (Only fields needed for ML + ID)
         print("Fetching inventory from MongoDB...")
@@ -24,7 +26,7 @@ def run_batch_update():
         projection = {
             "_id": 1,
             "stockRef": 1,  # Add stockRef to projection
-            "shape": 1,  # Add shape for shape-based filtering
+            "shape": 1,  
             "priceListUSD": 1,
             "weight": 1,
             "depthPerc": 1,
@@ -37,6 +39,7 @@ def run_batch_update():
         }
 
         cursor = collection.find({}, projection)
+        # cursor = source_collection.find({}, projection)
         df = pd.DataFrame(list(cursor))
 
         if df.empty:
@@ -53,12 +56,16 @@ def run_batch_update():
         operations = []
         recommender = DiamondRecommender()
 
+        # Track single-diamond shapes for fallback processing
+        single_diamond_shapes = []
+
         for shape in shapes:
             # Filter diamonds by current shape
             shape_df = df[df["shape"] == shape].reset_index(drop=True)
 
             if len(shape_df) < 2:
-                print(f"⚠️ Skipping shape '{shape}' - only {len(shape_df)} diamond(s)")
+                # Store for later - will use cross-shape recommendations
+                single_diamond_shapes.append(shape)
                 continue
 
             print(
@@ -85,12 +92,61 @@ def run_batch_update():
                 )
                 operations.append(op)
 
-        print("Preparing Bulk Update Operations...")
+        # Handle single-diamond shapes with cross-shape fallback
+        if single_diamond_shapes:
+            print(
+                f"\n📌 Processing {len(single_diamond_shapes)} single-diamond shapes with cross-shape fallback..."
+            )
+
+            # Get all single diamonds
+            single_diamonds_df = df[
+                df["shape"].isin(single_diamond_shapes)
+            ].reset_index(drop=True)
+
+            # Use the full dataset (excluding themselves) for recommendations
+            for idx, row in single_diamonds_df.iterrows():
+                current_stock_ref = row["stockRef"]
+                current_shape = row["shape"]
+
+                # Find similar from ALL other diamonds (cross-shape)
+                other_diamonds = df[df["stockRef"] != current_stock_ref].reset_index(
+                    drop=True
+                )
+
+                if len(other_diamonds) < 1:
+                    print(f"⚠️ No other diamonds to recommend for '{current_stock_ref}'")
+                    continue
+
+                # Fit model on all other diamonds and find nearest neighbors
+                ids, indices = recommender.find_similar(other_diamonds)
+
+                # Get the features for the current diamond to find its neighbors
+                # We need to find the nearest neighbors for this single diamond
+                from sklearn.preprocessing import StandardScaler
+
+                # Reuse the recommender to get neighbors for single diamond
+                # First fit on other diamonds, then query for this diamond
+                other_stock_refs = other_diamonds["stockRef"].tolist()
+
+                # Get top 10 similar (already excludes self since we removed it from dataset)
+                similar_stock_refs = [other_stock_refs[n] for n in indices[0][:10]]
+
+                op = UpdateOne(
+                    {"stockRef": current_stock_ref},
+                    {"$set": {"similar_diamonds": similar_stock_refs}},
+                )
+                operations.append(op)
+                print(
+                    f"   ✅ '{current_shape}' diamond ({current_stock_ref}) -> {len(similar_stock_refs)} cross-shape recs"
+                )
+
+        print("\nPreparing Bulk Update Operations...")
 
         # 6. Execute Bulk Write
         if operations:
             print(f"🚀 Writing {len(operations)} updates to MongoDB...")
             result = collection.bulk_write(operations)
+            # result = target_collection.bulk_write(operations)
             print(
                 f"✅ DONE! Matched: {result.matched_count} | Modified: {result.modified_count}"
             )
